@@ -52,8 +52,8 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="mb-8 text-center">
-            <img src="https://i.imgur.com/YQXIOsI.png" alt="Logo Amaral Barbeiro" class="h-40 mx-auto mb-4">
-            <h1 class="font-anton text-6xl tracking-wider text-amber-500">AMARAL BARBEIRO</h1>
+            <img src="https://i.imgur.com/YQXIOsI.png" alt="Logo Amaral Barbearia" class="h-28 mx-auto mb-4">
+            <h1 class="font-anton text-6xl tracking-wider text-amber-500">AMARAL BARBEARIA</h1>
         </header>
 
         <main>
@@ -68,9 +68,13 @@
             <div id="kiosk-view" class="view">
                  <div class="w-full max-w-md mx-auto bg-gray-800 p-8 sm:p-12 rounded-xl shadow-2xl border-t-4 border-amber-500 text-center">
                     <h2 class="text-2xl font-bold text-center mb-4 text-white">Bem-vindo!</h2>
-                    <p class="text-center text-gray-400 mb-6">Digite seu nome para entrar na fila de espera.</p>
+                    <p class="text-center text-gray-400 mb-6">Digite seu nome e escolha sua preferência.</p>
                     <div class="space-y-4">
                         <input type="text" id="kiosk-customer-name" placeholder="Seu nome completo" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <select id="kiosk-preferred-barber" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+                           <option value="any">Qualquer Barbeiro</option>
+                           <!-- Barbeiros serão populados aqui -->
+                        </select>
                         <button id="kiosk-join-queue-btn" class="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-4 px-4 rounded-lg shadow-lg text-xl">Entrar na Fila</button>
                     </div>
                     <div id="wait-time-display" class="text-amber-400 mt-6 h-6 text-lg font-semibold"></div>
@@ -143,9 +147,9 @@
         const ADMIN_PASSWORD = "AmaralAdmin"; 
         let isAdminAuthenticated = false;
         let isEstimationEnabled = localStorage.getItem('estimationEnabled') === 'true';
-        const AVERAGE_SERVICE_TIME_MINUTES = 25;
+        let dynamicAverageTime = 25;
+        let barbersCache = {};
         
-        // Variáveis de estado para cálculo da estimativa
         let currentQueueSize = 0;
         let availableBarbersCount = 0;
 
@@ -161,17 +165,15 @@
         };
 
         showLoginBtn.addEventListener('click', () => {
-            if (isAdminAuthenticated) {
-                switchView('admin-view');
-            } else {
+            if (isAdminAuthenticated) switchView('admin-view');
+            else {
                 passwordModal.classList.add('active');
                 document.getElementById('password-input').focus();
             }
         });
 
         document.getElementById('submit-password-btn').addEventListener('click', () => {
-            const input = document.getElementById('password-input').value;
-            if (input === ADMIN_PASSWORD) {
+            if (document.getElementById('password-input').value === ADMIN_PASSWORD) {
                 isAdminAuthenticated = true;
                 passwordModal.classList.remove('active');
                 switchView('admin-view');
@@ -188,7 +190,6 @@
         estimationToggle.addEventListener('change', (e) => {
             isEstimationEnabled = e.target.checked;
             localStorage.setItem('estimationEnabled', isEstimationEnabled);
-            updateWaitTime();
         });
 
         document.getElementById('go-to-kiosk-btn').addEventListener('click', () => switchView('kiosk-view'));
@@ -196,42 +197,29 @@
 
         // --- LÓGICA DOS MODAIS ---
         const allModals = document.querySelectorAll('.modal');
-        document.querySelectorAll('.cancel-modal-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => e.target.closest('.modal').classList.remove('active'));
-        });
+        document.querySelectorAll('.cancel-modal-btn').forEach(btn => btn.addEventListener('click', (e) => e.target.closest('.modal').classList.remove('active')));
         
         let activeBarberId = null;
         let barberToRemoveId = null;
 
         document.getElementById('add-barber-btn').addEventListener('click', () => document.getElementById('add-barber-modal').classList.add('active'));
-
         document.getElementById('save-barber-btn').addEventListener('click', async () => {
             const name = document.getElementById('new-barber-name').value.trim();
             if (name) {
                 await addDoc(collection(db, barbersCollectionPath), { name, status: 'available' });
                 document.getElementById('add-barber-modal').classList.remove('active');
-            } else {
-                document.getElementById('add-barber-error').textContent = "O nome não pode ser vazio.";
-            }
+            } else document.getElementById('add-barber-error').textContent = "O nome não pode ser vazio.";
         });
-
         document.getElementById('confirm-remove-barber-btn').addEventListener('click', async () => {
             if(barberToRemoveId) {
                 await deleteDoc(doc(db, barbersCollectionPath, barberToRemoveId));
                 document.getElementById('remove-barber-modal').classList.remove('active');
             }
         });
-        
-        document.getElementById('clear-history-btn').addEventListener('click', () => {
-            document.getElementById('clear-history-modal').classList.add('active');
-        });
-        
+        document.getElementById('clear-history-btn').addEventListener('click', () => document.getElementById('clear-history-modal').classList.add('active'));
         document.getElementById('confirm-clear-history-btn').addEventListener('click', async () => {
-            const historyRef = collection(db, historyCollectionPath);
-            const snapshot = await getDocs(historyRef);
-            const deletePromises = [];
-            snapshot.forEach(doc => deletePromises.push(deleteDoc(doc.ref)));
-            await Promise.all(deletePromises);
+            const snapshot = await getDocs(collection(db, historyCollectionPath));
+            await Promise.all(snapshot.docs.map(d => deleteDoc(d.ref)));
             document.getElementById('clear-history-modal').classList.remove('active');
         });
 
@@ -240,44 +228,81 @@
             const btn = e.target;
             const nameInput = document.getElementById('kiosk-customer-name');
             const feedbackEl = document.getElementById('kiosk-customer-feedback');
+            const barberSelect = document.getElementById('kiosk-preferred-barber');
             const name = nameInput.value.trim();
             if (name) {
                 btn.disabled = true;
                 try {
-                    await addDoc(collection(db, queueCollectionPath), { name, timestamp: serverTimestamp() });
+                    await addDoc(collection(db, queueCollectionPath), { 
+                        name, 
+                        timestamp: serverTimestamp(),
+                        preferredBarberId: barberSelect.value,
+                        preferredBarberName: barberSelect.options[barberSelect.selectedIndex].text
+                    });
                     feedbackEl.textContent = 'Sucesso! Você está na fila.';
                     nameInput.value = '';
-                    updateWaitTime();
+                    updateWaitTime(true); 
                 } catch (error) {
                     feedbackEl.textContent = 'Erro ao conectar.';
                 } finally {
-                    setTimeout(() => { btn.disabled = false; feedbackEl.textContent = ''; }, 3000);
+                    setTimeout(() => { btn.disabled = false; feedbackEl.textContent = ''; }, 4000);
                 }
             } else {
                 feedbackEl.textContent = 'Por favor, digite seu nome.';
             }
         });
 
-        function updateWaitTime() {
+        function updateWaitTime(forceShow = false) {
             const display = document.getElementById('wait-time-display');
-            if (!isEstimationEnabled || availableBarbersCount === 0 || currentQueueSize === 0) {
+            if (!isEstimationEnabled) {
                 display.textContent = '';
                 return;
             }
-            const waitTime = Math.ceil(currentQueueSize / availableBarbersCount) * AVERAGE_SERVICE_TIME_MINUTES;
-            display.textContent = `Tempo de espera: aprox. ${waitTime} minutos.`;
+            if(forceShow) {
+                const peopleInFront = currentQueueSize;
+                const waitTime = Math.ceil((peopleInFront + 1) / Math.max(1, availableBarbersCount)) * dynamicAverageTime;
+                display.textContent = `Tempo de espera: aprox. ${waitTime} minutos.`;
+                setTimeout(() => { display.textContent = '' }, 5000);
+            }
         }
         
         // --- LISTENERS (INICIAM COM A PÁGINA) ---
         function startListeners() {
-            // Fila (para TV e Admin)
+            onSnapshot(query(collection(db, barbersCollectionPath), orderBy("name")), (snapshot) => {
+                const selectEl = document.getElementById('kiosk-preferred-barber');
+                selectEl.innerHTML = '<option value="any">Qualquer Barbeiro</option>';
+                barbersCache = {};
+                let localAvailableBarbers = 0;
+                snapshot.forEach(doc => {
+                    const barber = { id: doc.id, ...doc.data() };
+                    barbersCache[barber.id] = barber.name;
+                    if (barber.status !== 'busy') {
+                        localAvailableBarbers++;
+                        const option = document.createElement('option');
+                        option.value = barber.id;
+                        option.textContent = barber.name;
+                        selectEl.appendChild(option);
+                    }
+                });
+                availableBarbersCount = localAvailableBarbers;
+            });
+
             onSnapshot(query(collection(db, queueCollectionPath), orderBy("timestamp")), (snapshot) => {
                 const listTV = document.getElementById('queue-list-display');
                 const nextAdmin = document.getElementById('next-in-queue-barber');
                 listTV.innerHTML = '';
                 
                 snapshot.docs.forEach((doc, i) => {
-                    listTV.innerHTML += `<li class="bg-gray-700 p-3 rounded-lg flex items-center text-xl"><span class="text-amber-400 font-bold text-2xl mr-4">${i + 1}º</span><span>${doc.data().name}</span></li>`;
+                    const data = doc.data();
+                    let preferenceText = '';
+                    if (data.preferredBarberId && data.preferredBarberId !== 'any') {
+                        preferenceText = `<span class="text-xs text-amber-300 ml-2">(Pref: ${data.preferredBarberName})</span>`;
+                    }
+                    listTV.innerHTML += `<li class="bg-gray-700 p-3 rounded-lg flex items-center text-xl">
+                        <span class="text-amber-400 font-bold text-2xl mr-4">${i + 1}º</span>
+                        <span>${data.name}</span>
+                        ${preferenceText}
+                    </li>`;
                 });
 
                 currentQueueSize = snapshot.size;
@@ -286,52 +311,35 @@
                 if (!hasCustomers) listTV.innerHTML = '<p class="text-center text-gray-400">A fila está vazia.</p>';
 
                 updateBarberButtonsState(hasCustomers);
-                updateWaitTime();
             });
 
-            // Atendimentos (para TV) e Barbeiros (para Admin)
             onSnapshot(query(collection(db, barbersCollectionPath), orderBy("name")), (snapshot) => {
                 const listTV = document.getElementById('serving-now-list');
                 const panelAdmin = document.getElementById('barbers-panel');
                 listTV.innerHTML = ''; panelAdmin.innerHTML = '';
-                let isAnyoneServing = false;
-                let localAvailableBarbers = 0;
-
                 if(snapshot.empty) panelAdmin.innerHTML = '<p class="col-span-full text-center text-gray-400">Nenhum barbeiro cadastrado.</p>';
-
+                
                 snapshot.forEach(doc => {
                     const barber = { id: doc.id, ...doc.data() };
-                    const isBusy = barber.status === 'busy';
-                    
-                    if (!isBusy) localAvailableBarbers++;
-                    
                     if (barber.status === 'busy') {
-                        isAnyoneServing = true;
                         listTV.innerHTML += `<div class="bg-gray-700 p-4 rounded-lg flex justify-between items-center text-xl"><span class="font-semibold">${barber.servingCustomerName}</span><span class="text-sm text-amber-400">${barber.name}</span></div>`;
                     }
-                    
                     const card = document.createElement('div');
-                    card.className = `barber-card bg-gray-800 p-6 rounded-xl border-2 ${isBusy ? 'border-red-600' : 'border-green-500'}`;
-                    card.innerHTML = `<div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">${barber.name}</h3><button data-barber-id="${barber.id}" data-barber-name="${barber.name}" class="remove-barber-btn text-xl leading-none text-gray-500 hover:text-red-500">&times;</button></div><p class="text-sm text-gray-400">Status:</p><p class="font-semibold text-lg ${isBusy ? 'text-red-400' : 'text-green-400'}">${isBusy ? `Atendendo: ${barber.servingCustomerName}` : 'Livre'}</p><div class="grid grid-cols-2 gap-2 mt-4"><button data-barber-id="${barber.id}" class="call-next-btn bg-green-600 hover:bg-green-700 font-semibold py-2 rounded-lg">Próximo</button><button data-barber-id="${barber.id}" class="call-specific-btn bg-blue-600 hover:bg-blue-700 font-semibold py-2 rounded-lg">Da Fila</button><button data-barber-id="${barber.id}" class="finish-work-btn col-span-2 bg-red-600 hover:bg-red-700 font-semibold py-2 rounded-lg mt-2">Finalizar</button></div>`;
+                    card.className = `barber-card bg-gray-800 p-6 rounded-xl border-2 ${barber.status === 'busy' ? 'border-red-600' : 'border-green-500'}`;
+                    card.innerHTML = `<div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">${barber.name}</h3><button data-barber-id="${barber.id}" data-barber-name="${barber.name}" class="remove-barber-btn text-xl leading-none text-gray-500 hover:text-red-500">&times;</button></div><p class="text-sm text-gray-400">Status:</p><p class="font-semibold text-lg ${barber.status === 'busy' ? 'text-red-400' : 'text-green-400'}">${barber.status === 'busy' ? `Atendendo: ${barber.servingCustomerName}` : 'Livre'}</p><div class="grid grid-cols-2 gap-2 mt-4"><button data-barber-id="${barber.id}" class="call-next-btn bg-green-600 hover:bg-green-700 font-semibold py-2 rounded-lg">Próximo</button><button data-barber-id="${barber.id}" class="call-specific-btn bg-blue-600 hover:bg-blue-700 font-semibold py-2 rounded-lg">Da Fila</button><button data-barber-id="${barber.id}" class="finish-work-btn col-span-2 bg-red-600 hover:bg-red-700 font-semibold py-2 rounded-lg mt-2">Finalizar</button></div>`;
                     panelAdmin.appendChild(card);
                 });
-
-                availableBarbersCount = localAvailableBarbers;
-                if(!isAnyoneServing) listTV.innerHTML = '<p class="text-gray-400 text-center">Nenhum cliente em atendimento.</p>';
+                if(!listTV.innerHTML) listTV.innerHTML = '<p class="text-gray-400 text-center">Nenhum cliente em atendimento.</p>';
                 addEventListenersToAdminButtons();
-                updateBarberButtonsState(document.getElementById('next-in-queue-barber').textContent !== 'Ninguém');
-                updateWaitTime();
+                updateBarberButtonsState(currentQueueSize > 0);
             });
 
-            // Histórico (para Admin)
             onSnapshot(query(collection(db, historyCollectionPath), orderBy("completedAt", "desc")), (snapshot) => {
                 const container = document.getElementById('history-list-container');
                 const statsEl = document.getElementById('history-stats');
-
                 const today = new Date().setHours(0, 0, 0, 0);
                 const todaysDocs = snapshot.docs.filter(doc => doc.data().completedAt?.toDate().setHours(0,0,0,0) === today);
-
-                // Calcular estatísticas
+                
                 const totalToday = todaysDocs.length;
                 const byBarber = todaysDocs.reduce((acc, doc) => {
                     const name = doc.data().barberName;
@@ -340,12 +348,15 @@
                 }, {});
                 
                 let statsHTML = `<p>Total de Hoje: <span class="font-bold text-amber-400">${totalToday}</span></p>`;
-                if(Object.keys(byBarber).length > 0) {
-                   statsHTML += `<p class="text-sm">Por Barbeiro: ${Object.entries(byBarber).map(([name, count]) => `${name} (${count})`).join(', ')}</p>`;
+                if(Object.keys(byBarber).length > 0) statsHTML += `<p class="text-sm">Por Barbeiro: ${Object.entries(byBarber).map(([name, count]) => `${name} (${count})`).join(', ')}</p>`;
+                
+                const durations = snapshot.docs.map(doc => doc.data().durationInMinutes).filter(d => d > 0);
+                if (durations.length > 0) {
+                    dynamicAverageTime = Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length);
+                    statsHTML += `<p class="text-sm">Tempo Médio de Atendimento: ${dynamicAverageTime} min</p>`;
                 }
-                statsEl.innerHTML = statsHTML;
 
-                // Montar tabela
+                statsEl.innerHTML = statsHTML;
                 container.innerHTML = snapshot.empty ? '<p class="text-center text-gray-400">Nenhum atendimento finalizado.</p>' : '<table class="w-full text-left"><thead><tr class="border-b border-gray-600"><th class="p-3 text-amber-500">Cliente</th><th class="p-3 text-amber-500">Barbeiro</th><th class="p-3 text-amber-500 text-right">Horário</th></tr></thead><tbody></tbody></table>';
                 if(!snapshot.empty) {
                     const tbody = container.querySelector('tbody');
@@ -381,8 +392,18 @@
         }
         
         async function callNextCustomer(barberId) {
-            const snap = await getDocs(query(collection(db, queueCollectionPath), orderBy("timestamp"), limit(1)));
-            if (!snap.empty) await callSpecificCustomer(barberId, snap.docs[0].id, snap.docs[0].data().name);
+            const q = query(collection(db, queueCollectionPath), orderBy("timestamp"));
+            const snap = await getDocs(q);
+            if (snap.empty) return;
+
+            for (const customerDoc of snap.docs) {
+                const customerData = customerDoc.data();
+                if (customerData.preferredBarberId === 'any' || customerData.preferredBarberId === barberId) {
+                    await callSpecificCustomer(barberId, customerDoc.id, customerData.name);
+                    return; // Sai da função após chamar o cliente
+                }
+            }
+            alert(`Não há clientes na fila para você no momento.`);
         }
 
         async function requestSpecificCustomer(barberId) {
@@ -395,9 +416,10 @@
             listEl.innerHTML = snap.empty ? '<p class="text-gray-400">A fila está vazia.</p>' : '';
             snap.forEach((doc, i) => {
                 const c = doc.data();
+                const prefText = (c.preferredBarberId && c.preferredBarberId !== 'any') ? ` (Pref: ${c.preferredBarberName})` : '';
                 const item = document.createElement('div');
                 item.className = 'specific-customer-item bg-gray-700 p-3 rounded-lg flex items-center cursor-pointer';
-                item.innerHTML = `<span class="text-amber-400 font-bold text-lg mr-4">${i + 1}º</span><span>${c.name}</span>`;
+                item.innerHTML = `<span class="text-amber-400 font-bold text-lg mr-4">${i + 1}º</span><span>${c.name}${prefText}</span>`;
                 item.onclick = () => callSpecificCustomer(activeBarberId, doc.id, c.name);
                 listEl.appendChild(item);
             });
@@ -406,7 +428,7 @@
         async function callSpecificCustomer(barberId, customerId, customerName) {
             document.getElementById('notification-sound').play();
             allModals.forEach(m => m.classList.remove('active'));
-            await updateDoc(doc(db, barbersCollectionPath, barberId), { status: 'busy', servingCustomerName: customerName, servingCustomerId: customerId });
+            await updateDoc(doc(db, barbersCollectionPath, barberId), { status: 'busy', servingCustomerName: customerName, servingCustomerId: customerId, servingSince: serverTimestamp() });
             await deleteDoc(doc(db, queueCollectionPath, customerId));
         }
 
@@ -415,8 +437,16 @@
             const barberSnap = await getDoc(barberRef);
             if (barberSnap.exists()) {
                 const d = barberSnap.data();
-                if (d.status === 'busy') await addDoc(collection(db, historyCollectionPath), { customerName: d.servingCustomerName, barberName: d.name, completedAt: serverTimestamp() });
-                await updateDoc(barberRef, { status: 'available', servingCustomerName: null, servingCustomerId: null });
+                if (d.status === 'busy' && d.servingSince) {
+                    const durationInMinutes = Math.round((new Date().getTime() - d.servingSince.toDate().getTime()) / 60000);
+                    await addDoc(collection(db, historyCollectionPath), { 
+                        customerName: d.servingCustomerName, 
+                        barberName: d.name, 
+                        completedAt: serverTimestamp(),
+                        durationInMinutes: durationInMinutes > 0 ? durationInMinutes : 1 
+                    });
+                }
+                await updateDoc(barberRef, { status: 'available', servingCustomerName: null, servingCustomerId: null, servingSince: null });
             }
         }
 
