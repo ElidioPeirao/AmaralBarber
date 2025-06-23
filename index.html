@@ -3,160 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Fila para Barbearia</title>
+    <title>Entrada na Fila - Amaral Barbearia</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .view {
-            display: none;
-        }
-        .view.active {
-            display: block;
-        }
-        .barber-card, .queue-item, .nav-button {
-             transition: all 0.2s ease-in-out;
-        }
-        .nav-button.active {
-            background-color: #4f46e5;
-            color: white;
-        }
-         .nav-button:not(.active):hover {
-            background-color: #3730a3;
-        }
-        .modal {
-            display: none;
-        }
-        .specific-customer-item {
-            cursor: pointer;
-        }
-        .specific-customer-item:hover {
-            background-color: #4f46e5;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .font-anton { font-family: 'Anton', sans-serif; }
     </style>
 </head>
-<body class="bg-gray-900 text-white antialiased">
+<body class="bg-gray-800 text-white antialiased flex items-center justify-center min-h-screen">
 
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
-        <div class="text-center">
-            <svg class="animate-spin h-10 w-10 text-white mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="text-lg font-semibold">Carregando sistema...</p>
+    <div class="w-full max-w-md mx-auto bg-gray-900 p-8 sm:p-12 rounded-xl shadow-2xl border-t-4 border-amber-500 text-center">
+        <h1 class="font-anton text-5xl tracking-wider text-amber-500">AMARAL BARBEARIA</h1>
+        <h2 class="text-2xl font-bold text-center mt-8 mb-4 text-white">Bem-vindo!</h2>
+        <p class="text-center text-gray-400 mb-6">Digite seu nome para entrar na fila de espera.</p>
+        <div class="space-y-4">
+            <input type="text" id="customer-name" placeholder="Seu nome completo" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <button id="join-queue-btn" class="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-4 px-4 rounded-lg shadow-lg text-xl transform hover:scale-105 transition-transform duration-200">
+                Entrar na Fila
+            </button>
         </div>
-    </div>
-    
-    <!-- Modais -->
-    <div id="password-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-40">
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm">
-            <h3 id="password-modal-title" class="text-2xl font-bold text-center mb-6">Acesso Restrito</h3>
-            <div class="space-y-4">
-                <input type="password" id="password-input" placeholder="Digite a senha" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <p id="password-error" class="text-red-500 text-sm text-center h-4"></p>
-                <button id="submit-password-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg">Entrar</button>
-                <button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="specific-customer-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-40">
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="text-2xl font-bold text-center mb-6">Escolher Cliente da Fila</h3>
-            <div id="specific-customer-list" class="space-y-2 max-h-64 overflow-y-auto mb-6"></div>
-            <button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-        </div>
-    </div>
-
-    <div id="add-barber-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-40">
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm">
-            <h3 class="text-2xl font-bold text-center mb-6">Adicionar Novo Barbeiro</h3>
-            <div class="space-y-4">
-                <input type="text" id="new-barber-name" placeholder="Nome do Barbeiro" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <p id="add-barber-error" class="text-red-500 text-sm text-center h-4"></p>
-                <button id="save-barber-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">Salvar</button>
-                <button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-     <div id="remove-barber-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-40">
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm">
-            <h3 class="text-2xl font-bold text-center mb-6">Confirmar Remoção</h3>
-            <p id="remove-barber-text" class="text-center text-gray-300 mb-6">Você tem certeza que deseja remover este barbeiro?</p>
-            <div class="flex gap-4">
-                <button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="confirm-remove-barber-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
-
-    <div class="container mx-auto p-4 md:p-8">
-        <header class="mb-8">
-            <h1 class="text-4xl font-bold text-center mb-2 text-indigo-400">Barbearia Fio Navalha</h1>
-            <p class="text-center text-gray-400 mb-6">Sistema de Gerenciamento de Fila</p>
-            <nav class="flex justify-center bg-gray-800 rounded-lg p-2 gap-2 max-w-lg mx-auto">
-                <button onclick="switchView('customer-view')" class="nav-button flex-1 py-2 px-4 rounded-md font-semibold text-gray-300">Área do Cliente</button>
-                <button onclick="requestPassword('barber-view')" class="nav-button flex-1 py-2 px-4 rounded-md font-semibold text-gray-300">Painel do Barbeiro</button>
-                <button onclick="requestPassword('display-view')" class="nav-button flex-1 py-2 px-4 rounded-md font-semibold text-gray-300">Fila (TV)</button>
-            </nav>
-        </header>
-
-        <main>
-            <!-- TELA DO CLIENTE -->
-            <div id="customer-view" class="view active">
-                <div class="max-w-md mx-auto bg-gray-800 p-8 rounded-xl shadow-2xl">
-                    <h2 class="text-3xl font-bold text-center mb-6">Bem-vindo!</h2>
-                    <p class="text-center text-gray-400 mb-6">Digite seu nome para entrar na fila de espera.</p>
-                    <div class="space-y-4">
-                        <input type="text" id="customer-name" placeholder="Seu nome" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <button id="join-queue-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-200">
-                            Entrar na Fila
-                        </button>
-                    </div>
-                    <p id="customer-feedback" class="text-center text-green-400 mt-4 h-5"></p>
-                </div>
-            </div>
-
-            <!-- TELA DO BARBEIRO -->
-            <div id="barber-view" class="view">
-                 <div class="text-center mb-6">
-                    <h2 class="text-3xl font-bold text-indigo-400">Painel dos Barbeiros</h2>
-                    <p class="text-gray-400">Próximo cliente na fila: <span id="next-in-queue-barber" class="font-bold text-xl text-yellow-400">Ninguém</span></p>
-                </div>
-                <div class="text-center mb-8">
-                    <button id="add-barber-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg">Adicionar Barbeiro</button>
-                </div>
-                <div id="barbers-panel" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Cards dos barbeiros serão inseridos aqui -->
-                </div>
-            </div>
-
-            <!-- TELA DE EXIBIÇÃO (TV) -->
-            <div id="display-view" class="view">
-                <div class="grid lg:grid-cols-2 gap-8">
-                    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl">
-                        <h2 class="text-2xl font-bold mb-4 border-b-2 border-indigo-500 pb-2">💈 Em Atendimento</h2>
-                        <div id="serving-now-list" class="space-y-4"></div>
-                    </div>
-                    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl">
-                         <h2 class="text-2xl font-bold mb-4 border-b-2 border-yellow-500 pb-2">⏳ Fila de Espera</h2>
-                        <ol id="queue-list-display" class="space-y-3"></ol>
-                    </div>
-                </div>
-            </div>
-        </main>
+        <p id="customer-feedback" class="text-center text-green-400 mt-6 h-6 text-lg"></p>
     </div>
 
     <script type="module">
-        // Importações do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, addDoc, serverTimestamp, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- COLE AQUI A CONFIGURAÇÃO DO SEU FIREBASE ---
         const firebaseConfig = {
           apiKey: "AIzaSyDHSIP0Ko808esMuRt0AIQ0Ujhh6hL8ySo",
           authDomain: "barberamaral-e10a4.firebaseapp.com",
@@ -166,266 +42,46 @@
           appId: "1:617102577968:web:2caa50df50518ee2f578f5",
           measurementId: "G-66VFX9JERR"
         };
+        // ---------------------------------------------
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        const ADMIN_PASSWORD = 'admin';
-        const TV_PASSWORD = 'tv';
-
         const queueCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/queue`;
-        const barbersCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/barbers`;
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                startListeners();
-                document.getElementById('loading-overlay').style.display = 'none';
-            } else {
-                await signInAnonymously(auth).catch(error => {
-                     document.getElementById('loading-overlay').innerHTML = `<p class="text-red-500">Erro ao conectar. Tente recarregar a página.</p>`;
-                });
-            }
-        });
+        const nameInput = document.getElementById('customer-name');
+        const joinQueueBtn = document.getElementById('join-queue-btn');
+        const feedbackEl = document.getElementById('customer-feedback');
 
-        // --- LÓGICA DE NAVEGAÇÃO E MODAIS ---
-        const allModals = document.querySelectorAll('.modal');
-        const passwordModal = document.getElementById('password-modal');
-        const specificCustomerModal = document.getElementById('specific-customer-modal');
-        const addBarberModal = document.getElementById('add-barber-modal');
-        const removeBarberModal = document.getElementById('remove-barber-modal');
-        let targetViewId = '';
-        let activeBarberId = null;
-        let barberToRemoveId = null;
-
-        window.switchView = (viewId) => {
-            document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewId));
-            document.querySelectorAll('.nav-button').forEach(button => {
-                const buttonView = button.getAttribute('onclick').includes('customer') ? 'customer-view' : button.getAttribute('onclick').includes('barber') ? 'barber-view' : 'display-view';
-                button.classList.toggle('active', buttonView === viewId);
-            });
-        };
-
-        window.requestPassword = (viewId) => {
-            targetViewId = viewId;
-            document.getElementById('password-input').value = '';
-            document.getElementById('password-error').textContent = '';
-            document.getElementById('password-modal-title').textContent = viewId === 'barber-view' ? 'Acesso do Barbeiro' : 'Acesso à Fila (TV)';
-            passwordModal.style.display = 'flex';
-            document.getElementById('password-input').focus();
-        };
-
-        document.getElementById('submit-password-btn').addEventListener('click', () => {
-            const enteredPassword = document.getElementById('password-input').value;
-            let correct = false;
-            if (targetViewId === 'barber-view' && enteredPassword === ADMIN_PASSWORD) correct = true;
-            if (targetViewId === 'display-view' && enteredPassword === TV_PASSWORD) correct = true;
-            if (correct) {
-                passwordModal.style.display = 'none';
-                switchView(targetViewId);
-            } else {
-                document.getElementById('password-error').textContent = 'Senha incorreta.';
-            }
-        });
-        
-        document.querySelectorAll('.cancel-modal-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                allModals.forEach(modal => modal.style.display = 'none');
-            });
-        });
-        
-        document.getElementById('add-barber-btn').addEventListener('click', () => {
-            document.getElementById('new-barber-name').value = '';
-            document.getElementById('add-barber-error').textContent = '';
-            addBarberModal.style.display = 'flex';
-        });
-
-        document.getElementById('save-barber-btn').addEventListener('click', async () => {
-            const nameInput = document.getElementById('new-barber-name');
+        joinQueueBtn.addEventListener('click', async () => {
             const name = nameInput.value.trim();
             if (name) {
-                await addDoc(collection(db, barbersCollectionPath), {
-                    name: name,
-                    status: 'available',
-                    servingCustomerName: null,
-                    servingCustomerId: null,
-                });
-                addBarberModal.style.display = 'none';
-            } else {
-                document.getElementById('add-barber-error').textContent = "O nome não pode ser vazio.";
-            }
-        });
-
-        document.getElementById('confirm-remove-barber-btn').addEventListener('click', async () => {
-            if(barberToRemoveId) {
-                await deleteDoc(doc(db, barbersCollectionPath, barberToRemoveId));
-                removeBarberModal.style.display = 'none';
-                barberToRemoveId = null;
-            }
-        });
-
-        switchView('customer-view'); 
-
-        // --- LÓGICA DA TELA DO CLIENTE ---
-        document.getElementById('join-queue-btn').addEventListener('click', async () => {
-            const nameInput = document.getElementById('customer-name');
-            const feedbackEl = document.getElementById('customer-feedback');
-            const name = nameInput.value.trim();
-            if (name) {
+                joinQueueBtn.disabled = true;
+                joinQueueBtn.textContent = 'Aguarde...';
                 try {
-                    await addDoc(collection(db, queueCollectionPath), { name: name, timestamp: serverTimestamp() });
-                    feedbackEl.textContent = 'Sucesso! Você entrou na fila.';
+                    await addDoc(collection(db, queueCollectionPath), { 
+                        name: name, 
+                        timestamp: serverTimestamp() 
+                    });
+                    feedbackEl.className = 'text-center text-green-400 mt-6 h-6 text-lg';
+                    feedbackEl.textContent = 'Sucesso! Você está na fila.';
                     nameInput.value = '';
-                    setTimeout(() => feedbackEl.textContent = '', 3000);
                 } catch (error) {
+                    feedbackEl.className = 'text-center text-red-500 mt-6 h-6 text-lg';
                     feedbackEl.textContent = 'Erro ao conectar. Tente novamente.';
+                    console.error("Erro ao entrar na fila:", error);
+                } finally {
+                    setTimeout(() => {
+                        joinQueueBtn.disabled = false;
+                        joinQueueBtn.textContent = 'Entrar na Fila';
+                        feedbackEl.textContent = '';
+                    }, 3000);
                 }
             } else {
+                feedbackEl.className = 'text-center text-yellow-400 mt-6 h-6 text-lg';
                 feedbackEl.textContent = 'Por favor, digite seu nome.';
+                 setTimeout(() => { feedbackEl.textContent = '' }, 3000);
             }
         });
-        
-        // --- LISTENERS E ATUALIZAÇÃO DA UI ---
-        function startListeners() {
-            const q = query(collection(db, queueCollectionPath), orderBy("timestamp"));
-            onSnapshot(q, (snapshot) => {
-                const queueListDisplay = document.getElementById('queue-list-display');
-                const nextInQueueBarberEl = document.getElementById('next-in-queue-barber');
-                queueListDisplay.innerHTML = '';
-                const waitingCustomers = snapshot.docs;
-                if (waitingCustomers.length > 0) {
-                    nextInQueueBarberEl.textContent = waitingCustomers[0].data().name;
-                    waitingCustomers.forEach((doc, index) => {
-                        const item = document.createElement('li');
-                        item.className = 'queue-item bg-gray-700 p-3 rounded-lg flex items-center';
-                        item.innerHTML = `<span class="text-yellow-400 font-bold text-xl mr-4">${index + 1}º</span><span class="text-lg">${doc.data().name}</span>`;
-                        queueListDisplay.appendChild(item);
-                    });
-                } else {
-                    nextInQueueBarberEl.textContent = 'Ninguém';
-                    queueListDisplay.innerHTML = '<p class="text-gray-400 text-center py-4">A fila de espera está vazia.</p>';
-                }
-                updateBarberButtonsState(waitingCustomers.length > 0);
-            });
-
-            const barbersQuery = query(collection(db, barbersCollectionPath), orderBy("name"));
-            onSnapshot(barbersQuery, (snapshot) => {
-                const barbersPanel = document.getElementById('barbers-panel');
-                const servingNowList = document.getElementById('serving-now-list');
-                barbersPanel.innerHTML = '';
-                servingNowList.innerHTML = '';
-                let isAnyoneServing = false;
-                if(snapshot.empty){
-                    barbersPanel.innerHTML = '<p class="text-gray-400 text-center col-span-full">Nenhum barbeiro cadastrado. Adicione um para começar.</p>';
-                }
-                snapshot.docs.forEach(doc => {
-                    const barber = { id: doc.id, ...doc.data() };
-                    const isBusy = barber.status === 'busy';
-                    const barberCard = document.createElement('div');
-                    barberCard.className = `barber-card bg-gray-800 p-6 rounded-xl shadow-lg border-2 ${isBusy ? 'border-red-500' : 'border-green-500'}`;
-                    barberCard.innerHTML = `
-                        <div class="flex justify-between items-start">
-                           <h3 class="text-2xl font-bold mb-2">${barber.name}</h3>
-                           <button data-barber-id="${barber.id}" data-barber-name="${barber.name}" class="remove-barber-btn text-gray-500 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed">&times;</button>
-                        </div>
-                        <div class="mb-4 h-12">
-                            <p class="text-sm text-gray-400">Status:</p>
-                            <p class="font-semibold text-lg ${isBusy ? 'text-red-400' : 'text-green-400'}">
-                                ${isBusy ? `Atendendo: ${barber.servingCustomerName}` : 'Livre'}
-                            </p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button data-barber-id="${barber.id}" class="call-next-btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed">Chamar Próximo</button>
-                            <button data-barber-id="${barber.id}" class="call-specific-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed">Chamar da Fila</button>
-                            <button data-barber-id="${barber.id}" class="finish-work-btn col-span-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed">Finalizar</button>
-                        </div>
-                    `;
-                    barbersPanel.appendChild(barberCard);
-                    if (isBusy) {
-                        isAnyoneServing = true;
-                        const servingItem = document.createElement('div');
-                        servingItem.className = 'queue-item bg-gray-700 p-4 rounded-lg flex justify-between items-center';
-                        servingItem.innerHTML = `
-                            <span class="text-lg font-semibold">${barber.servingCustomerName}</span>
-                            <span class="text-sm text-indigo-400">${barber.name}</span>
-                        `;
-                        servingNowList.appendChild(servingItem);
-                    }
-                });
-                if (!isAnyoneServing) servingNowList.innerHTML = '<p class="text-gray-400 text-center py-4">Nenhum cliente em atendimento.</p>';
-                addEventListenersToBarberButtons();
-                const queueIsNotEmpty = document.getElementById('next-in-queue-barber').textContent !== 'Ninguém';
-                updateBarberButtonsState(queueIsNotEmpty);
-            });
-        }
-        
-        function updateBarberButtonsState(queueIsNotEmpty) {
-            document.querySelectorAll('.barber-card').forEach(card => {
-                const isBusy = card.querySelector('.text-red-400') !== null;
-                card.querySelector('.call-next-btn').disabled = isBusy || !queueIsNotEmpty;
-                card.querySelector('.call-specific-btn').disabled = isBusy || !queueIsNotEmpty;
-                card.querySelector('.finish-work-btn').disabled = !isBusy;
-                card.querySelector('.remove-barber-btn').disabled = isBusy;
-            });
-        }
-
-        function addEventListenersToBarberButtons() {
-            document.querySelectorAll('.call-next-btn').forEach(btn => btn.onclick = (e) => callNextCustomer(e.target.dataset.barberId));
-            document.querySelectorAll('.finish-work-btn').forEach(btn => btn.onclick = (e) => finishWork(e.target.dataset.barberId));
-            document.querySelectorAll('.call-specific-btn').forEach(btn => btn.onclick = (e) => requestSpecificCustomer(e.target.dataset.barberId));
-            document.querySelectorAll('.remove-barber-btn').forEach(btn => btn.onclick = (e) => {
-                barberToRemoveId = e.target.dataset.barberId;
-                const barberName = e.target.dataset.barberName;
-                document.getElementById('remove-barber-text').textContent = `Você tem certeza que deseja remover ${barberName}?`;
-                removeBarberModal.style.display = 'flex';
-            });
-        }
-        
-        async function callNextCustomer(barberId) {
-            const q = query(collection(db, queueCollectionPath), orderBy("timestamp"), limit(1));
-            const queueSnapshot = await getDocs(q);
-            if (!queueSnapshot.empty) {
-                const nextCustomerDoc = queueSnapshot.docs[0];
-                await callSpecificCustomer(barberId, nextCustomerDoc.id, nextCustomerDoc.data().name);
-            }
-        }
-
-        async function requestSpecificCustomer(barberId) {
-            activeBarberId = barberId;
-            const listEl = document.getElementById('specific-customer-list');
-            listEl.innerHTML = '<p class="text-center">Carregando fila...</p>';
-            specificCustomerModal.style.display = 'flex';
-            
-            const q = query(collection(db, queueCollectionPath), orderBy("timestamp"));
-            const queueSnapshot = await getDocs(q);
-            
-            listEl.innerHTML = '';
-            if (queueSnapshot.empty) {
-                 listEl.innerHTML = '<p class="text-center text-gray-400">A fila está vazia.</p>';
-                 return;
-            }
-
-            queueSnapshot.forEach((doc, index) => {
-                const customer = doc.data();
-                const item = document.createElement('div');
-                item.className = 'specific-customer-item bg-gray-700 p-3 rounded-lg flex items-center transition-colors';
-                item.innerHTML = `<span class="text-yellow-400 font-bold text-lg mr-4">${index + 1}º</span><span class="text-lg">${customer.name}</span>`;
-                item.onclick = () => callSpecificCustomer(activeBarberId, doc.id, customer.name);
-                listEl.appendChild(item);
-            });
-        }
-
-        async function callSpecificCustomer(barberId, customerId, customerName) {
-            allModals.forEach(modal => modal.style.display = 'none');
-            const barberRef = doc(db, barbersCollectionPath, barberId);
-            await updateDoc(barberRef, { status: 'busy', servingCustomerName: customerName, servingCustomerId: customerId });
-            await deleteDoc(doc(db, queueCollectionPath, customerId));
-        }
-
-        async function finishWork(barberId) {
-            const barberRef = doc(db, barbersCollectionPath, barberId);
-             await updateDoc(barberRef, { status: 'available', servingCustomerName: null, servingCustomerId: null });
-        }
     </script>
 </body>
 </html>
