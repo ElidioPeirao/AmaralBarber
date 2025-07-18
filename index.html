@@ -110,7 +110,7 @@
         </div>
         
         <footer class="text-center mt-12 text-gray-600 text-sm">
-            <p>ID da Sessão: <span id="session-id" class="font-mono"></span></p>
+            <p id="connection-status" class="text-green-500 font-semibold hidden">Conectado</p>
             <p>&copy; 2024 - Amaral Barbearia</p>
         </footer>
     </div>
@@ -122,10 +122,10 @@
 
         // Configuração do Firebase injetada pelo ambiente para segurança
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'barbershop-app-default';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'barbershop-app-public';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let app, auth, db, userId, unsubscribeQueue = null;
+        let app, auth, db, unsubscribeQueue = null;
 
         const ui = {
             customerNameInput: document.getElementById('customer-name'),
@@ -133,7 +133,7 @@
             waitingList: document.getElementById('waiting-list'),
             historyDateInput: document.getElementById('history-date'),
             historyList: document.getElementById('history-list'),
-            sessionIdDisplay: document.getElementById('session-id'),
+            connectionStatus: document.getElementById('connection-status'),
             notificationArea: document.getElementById('notification-area'),
             queueEmptyState: document.getElementById('queue-empty-state'),
             historyEmptyState: document.getElementById('history-empty-state'),
@@ -165,13 +165,13 @@
 
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        userId = user.uid;
-                        ui.sessionIdDisplay.textContent = userId;
+                        ui.connectionStatus.classList.remove('hidden');
                         setupRealtimeQueueListener();
                         setupHistoryListener();
                     }
                 });
                 
+                // Lógica de autenticação segura para o ambiente
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
@@ -180,7 +180,7 @@
 
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                showNotification("Falha na conexão com o sistema.", "error");
+                showNotification("Falha na conexão com o sistema. Verifique as configurações do Firebase.", "error");
             }
             ui.historyDateInput.value = new Date().toISOString().split('T')[0];
             setupConsentFlow();
@@ -195,8 +195,8 @@
         }
 
         function setupRealtimeQueueListener() {
-            if (!userId) return;
-            const queueCollectionPath = `artifacts/${appId}/users/${userId}/queue`;
+            // Caminho PÚBLICO e seguro para a fila
+            const queueCollectionPath = `artifacts/${appId}/public/data/queue`;
             const q = query(collection(db, queueCollectionPath), orderBy("timestamp", "asc"));
 
             unsubscribeQueue = onSnapshot(q, (snapshot) => renderQueue(snapshot.docs), (error) => {
@@ -237,18 +237,17 @@
                 showNotification("Por favor, digite o nome do cliente.", "error");
                 return;
             }
-            if (!userId) {
-                showNotification("Erro de autenticação.", "error");
+             if (!auth.currentUser) {
+                showNotification("Erro de autenticação. Tente recarregar a página.", "error");
                 return;
             }
 
             try {
-                const queueCollectionPath = `artifacts/${appId}/users/${userId}/queue`;
+                const queueCollectionPath = `artifacts/${appId}/public/data/queue`;
                 await addDoc(collection(db, queueCollectionPath), { name, timestamp: serverTimestamp() });
                 ui.customerNameInput.value = '';
                 showNotification(`"${name}" foi adicionado à fila!`, "success");
 
-                // Resetar a visualização para o aviso
                 ui.addCustomerSection.classList.add('hidden');
                 ui.consentSection.classList.remove('hidden');
 
@@ -264,8 +263,8 @@
             const customerId = button.dataset.id;
             const customerName = button.dataset.name;
             
-            if (!userId) {
-                showNotification("Erro de autenticação.", "error");
+            if (!auth.currentUser) {
+                showNotification("Erro de autenticação. Tente recarregar a página.", "error");
                 button.disabled = false;
                 return;
             }
@@ -277,7 +276,7 @@
             setTimeout(async () => {
                 try {
                     await addToHistory(customerName);
-                    const queueDocPath = `artifacts/${appId}/users/${userId}/queue/${customerId}`;
+                    const queueDocPath = `artifacts/${appId}/public/data/queue/${customerId}`;
                     await deleteDoc(doc(db, queueDocPath));
                     await fetchAndRenderHistory(); 
                     showNotification(`${customerName} foi atendido!`, "success");
@@ -292,7 +291,8 @@
 
         async function addToHistory(customerName) {
             const today = new Date().toISOString().split('T')[0];
-            const historyDocPath = `artifacts/${appId}/users/${userId}/history/${today}`;
+            // Caminho PÚBLICO e seguro para o histórico
+            const historyDocPath = `artifacts/${appId}/public/data/history/${today}`;
             const historyDocRef = doc(db, historyDocPath);
 
             const docSnap = await getDoc(historyDocRef);
@@ -313,12 +313,12 @@
 
         async function fetchAndRenderHistory() {
             const selectedDate = ui.historyDateInput.value;
-            if (!selectedDate || !userId) return;
+            if (!selectedDate) return;
             
             ui.historyList.innerHTML = '';
             
             try {
-                const historyDocPath = `artifacts/${appId}/users/${userId}/history/${selectedDate}`;
+                const historyDocPath = `artifacts/${appId}/public/data/history/${selectedDate}`;
                 const docSnap = await getDoc(doc(db, historyDocPath));
                 
                 let customers = [];
