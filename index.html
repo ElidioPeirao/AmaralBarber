@@ -3,573 +3,356 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Fila - Amaral Barbearia</title>
+    <title>Amaral Barbearia - Fila & Histórico</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
-        :root { --primary-color: #f59e0b; }
-        body { font-family: 'Inter', sans-serif; }
-        .font-anton { font-family: 'Anton', sans-serif; }
-        .view { display: none; }
-        .view.active { display: block; }
-        .modal { display: none; }
-        .modal.active { display: flex; }
-        .barber-card, .specific-customer-item { transition: all 0.2s ease-in-out; }
-        .specific-customer-item:hover { background-color: #d97706; }
-        .text-primary { color: var(--primary-color); }
-        .bg-primary { background-color: var(--primary-color); }
-        .border-primary { border-color: var(--primary-color); }
-        .hover\:bg-primary-hover:hover { background-color: #d97706; }
-        .ring-primary:focus { --tw-ring-color: var(--primary-color); }
-        .text-primary-light { color: #fcd34d; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary-color); }
-        input:checked + .slider:before { transform: translateX(22px); }
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        h1, h2 {
+            font-family: 'Roboto Slab', serif;
+        }
+        .animate-enter {
+            animation: enter 0.5s ease-out;
+        }
+        .animate-leave {
+            animation: leave 0.5s ease-in forwards;
+        }
+        @keyframes enter {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes leave {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9); }
+        }
+        /* Estilização do input de data para tema escuro */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-white antialiased">
-
-    <audio id="notification-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_2433fe150b.mp3" preload="auto"></audio>
-
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
-        <div class="text-center"><svg class="animate-spin h-10 w-10 text-primary mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p>Carregando...</p></div>
-    </div>
+<body class="bg-gray-900 text-gray-200">
     
-    <button id="show-login-btn" class="fixed top-4 right-4 bg-gray-700 p-3 rounded-full hover:bg-gray-600 z-30">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-    </button>
-    
-    <div id="password-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40">
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-primary">
-            <h3 class="text-2xl font-bold text-center mb-6">Acesso Administrativo</h3>
-            <div class="space-y-4">
-                <input type="password" id="password-input" placeholder="Senha" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 ring-primary">
-                <p id="password-error" class="text-red-500 text-sm text-center h-4"></p>
-                <button id="submit-password-btn" class="w-full bg-primary hover:bg-primary-hover text-black font-bold py-3 px-4 rounded-lg">Entrar</button>
-                <button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg mt-2">Cancelar</button>
-            </div>
-        </div>
-    </div>
+    <!-- Área de Notificações -->
+    <div id="notification-area" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
 
-    <div class="container mx-auto p-4 md:p-8">
-        <header class="mb-8 text-center">
-            <img src="https://i.imgur.com/YQXIOsI.png" alt="Logo Amaral Barbearia" class="h-28 mx-auto mb-4">
-            <h1 class="font-anton text-6xl tracking-wider text-primary">AMARAL BARBEARIA</h1>
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <header class="text-center mb-10">
+            <img src="https://i.imgur.com/YQXIOsI.png" alt="Logo Amaral Barbearia" class="h-48 mx-auto mb-4 rounded-full">
+            <h1 class="text-5xl font-bold text-white">Amaral Barbearia</h1>
+            <p class="text-amber-400 mt-2 text-lg">Gerenciamento de Fila & Histórico</p>
         </header>
 
-        <main>
-            <div id="tv-view" class="view active">
-                 <p class="text-center text-gray-400 mb-8">Acompanhe a Fila</p>
-                <div class="flex flex-col md:flex-row gap-8">
-                    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border-t-4 border-primary w-full"><h2 class="text-2xl font-bold mb-4 border-b-2 border-primary pb-2 text-white">💈 Em Atendimento</h2><div id="serving-now-list" class="space-y-4"></div></div>
-                    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border-t-4 border-primary w-full"><h2 class="text-2xl font-bold mb-4 border-b-2 border-primary pb-2 text-white">⏳ Fila de Espera</h2><ol id="queue-list-display" class="space-y-3"></ol></div>
-                </div>
-            </div>
+        <!-- Seção para Entrar na Fila -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl mb-8 border border-gray-700">
             
-            <div id="kiosk-view" class="view">
-                <div class="flex flex-col lg:flex-row gap-8">
-                    <div class="w-full lg:w-1/2 bg-gray-800 p-8 sm:p-12 rounded-xl shadow-2xl border-t-4 border-primary text-center">
-                        <h2 class="text-2xl font-bold text-center mb-4 text-white">Bem-vindo!</h2>
-                        <p class="text-center text-gray-400 mb-6">Digite seu nome e escolha seus serviços.</p>
-                        <div class="space-y-4">
-                            <input type="text" id="kiosk-customer-name" placeholder="Seu nome completo" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:ring-2 ring-primary">
-                            <select id="kiosk-preferred-barber" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:ring-2 ring-primary">
-                               <option value="any">Qualquer Barbeiro</option>
-                            </select>
-                            <div id="kiosk-services-section">
-                                 <button id="show-services-modal-btn" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">Selecionar Serviços</button>
-                                 <div id="services-summary" class="text-left mt-2 p-2 text-sm text-gray-300"></div>
-                            </div>
-                            <button id="kiosk-join-queue-btn" class="w-full bg-primary hover:bg-primary-hover text-black font-bold py-4 px-4 rounded-lg shadow-lg text-xl">Entrar na Fila</button>
-                        </div>
-                        <div id="wait-time-display" class="text-primary-light mt-6 h-6 text-lg font-semibold"></div>
-                        <p id="kiosk-customer-feedback" class="text-center text-green-400 mt-2 h-6 text-lg"></p>
-                        <div class="mt-6 text-xs text-gray-500 text-center">
-                            <strong>Aviso:</strong> A inscrição na lista de espera não garante o atendimento. É imprescindível a presença na barbearia no momento da chamada. A ausência resultará na remoção automática da fila.
-                        </div>
-                    </div>
-                    <div class="w-full lg:w-1/2 bg-gray-800 p-6 rounded-xl shadow-2xl border-t-4 border-primary">
-                        <h2 class="text-2xl font-bold mb-4 border-b-2 border-primary pb-2 text-white">Fila Atual</h2>
-                        <ol id="kiosk-queue-list" class="space-y-3"></ol>
-                    </div>
-                </div>
+            <!-- Seção de Aviso (Visível por padrão) -->
+            <div id="consent-section" class="text-center bg-gray-700/50 border border-amber-500/30 p-8 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3">
+                    <i class="fas fa-exclamation-circle text-amber-400"></i>
+                    <span>Termos de Atendimento</span>
+                </h2>
+                <p class="text-gray-300 mb-6 max-w-lg mx-auto leading-relaxed">Prezado cliente, a inclusão do seu nome na lista destina-se exclusivamente ao nosso controle de ordem de chegada. A lista não constitui uma reserva de vaga. Solicitamos a gentileza de registrar apenas clientes que já estão presentes no estabelecimento.</p>
+                <button id="consent-btn" class="bg-amber-500 text-gray-900 font-bold py-3 px-8 rounded-lg hover:bg-amber-400 transition-colors text-lg shadow-lg hover:shadow-amber-500/20">Compreendi e desejo continuar</button>
             </div>
 
-            <div id="admin-view" class="view">
-                <p class="text-center text-gray-400 mb-4">Painel de Controle</p>
-                <div class="text-center mb-8 space-x-4">
-                     <button id="go-to-tv-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg">Ver Tela da TV</button>
-                     <button id="go-to-kiosk-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Tela de Cliente</button>
-                     <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg">Sair do Painel</button>
-                </div>
-
-                <div class="bg-gray-800 p-4 rounded-lg max-w-lg mx-auto mb-12 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="font-semibold">Habilitar Estimativa de Tempo:</span>
-                        <label class="switch"><input type="checkbox" id="toggle-estimation-btn"><span class="slider"></span></label>
-                    </div>
-                     <div class="flex items-center justify-between">
-                        <span class="font-semibold">Habilitar Seleção de Serviços:</span>
-                        <label class="switch"><input type="checkbox" id="toggle-services-btn"><span class="slider"></span></label>
-                    </div>
-                </div>
-
-                <div class="mt-8">
-                    <div class="text-center mb-6"><h2 class="text-3xl font-bold text-primary">Gerenciar</h2></div>
-                    <div class="text-center mb-8 space-x-4"><button id="add-barber-btn" class="bg-primary hover:bg-primary-hover text-black font-bold py-2 px-6 rounded-lg">Adicionar Barbeiro</button><button id="manage-services-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg">Gerenciar Serviços</button></div>
-                    <div id="barbers-panel" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-                </div>
-
-                <div class="mt-16">
-                    <h3 class="text-3xl font-bold text-primary text-center mb-6">Fila de Espera</h3>
-                    <p class="text-center text-gray-400 mb-4">Próximo cliente: <span id="next-in-queue-barber" class="font-bold text-xl text-white">Ninguém</span></p>
-                    <div id="admin-queue-list" class="bg-gray-800 p-6 rounded-xl shadow-2xl border-t-4 border-primary max-w-4xl mx-auto max-h-96 overflow-y-auto"></div>
-                </div>
-
-                <div class="mt-16">
-                    <div class="text-center mb-6">
-                         <h3 class="text-3xl font-bold text-primary">Histórico de Atendimentos</h3>
-                         <div id="history-stats" class="mt-2 text-gray-300"></div>
-                         <div class="mt-4 space-x-2">
-                             <button id="generate-pdf-btn" class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold py-2 px-4 rounded-lg" title="Gerar Relatório do Dia">Gerar Relatório (PDF)</button>
-                             <button id="clear-history-btn" class="bg-red-800 hover:bg-red-700 text-white text-sm font-semibold py-2 px-4 rounded-lg" title="Limpar Histórico">Limpar Histórico</button>
-                         </div>
-                    </div>
-                    <div id="history-list-container" class="bg-gray-800 p-6 rounded-xl shadow-2xl border-t-4 border-primary max-w-4xl mx-auto"></div>
+            <!-- Seção para Adicionar Cliente (Oculta por padrão) -->
+            <div id="add-customer-section" class="hidden">
+                <h2 class="text-2xl font-semibold mb-4 text-white">Entrar na Fila</h2>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="customer-name" placeholder="Nome do Cliente" class="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+                    <button id="add-customer-btn" class="bg-amber-500 text-gray-900 font-bold py-3 px-6 rounded-lg hover:bg-amber-400 transition-all shadow-lg hover:shadow-amber-500/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        <span>Entrar na Fila</span>
+                    </button>
                 </div>
             </div>
-        </main>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Seção da Fila de Espera -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
+                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-3 text-white">
+                    <i class="fas fa-users mr-2 text-amber-400"></i>Fila de Espera
+                </h2>
+                <div id="queue-empty-state" class="text-center py-8 text-gray-500 hidden">
+                    <i class="fas fa-chair fa-3x mb-4"></i>
+                    <p>Ninguém na fila de espera.</p>
+                </div>
+                <ul id="waiting-list" class="space-y-3">
+                    <!-- Clientes na fila -->
+                </ul>
+            </div>
+
+            <!-- Seção do Histórico -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
+                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-3 text-white">
+                    <i class="fas fa-history mr-2 text-amber-400"></i>Histórico de Atendimentos
+                </h2>
+                <div class="mb-4">
+                    <label for="history-date" class="block text-sm font-medium text-gray-400 mb-1">Selecione uma data:</label>
+                    <input type="date" id="history-date" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                 <div id="history-empty-state" class="text-center py-8 text-gray-500 hidden">
+                    <i class="fas fa-calendar-times fa-3x mb-4"></i>
+                    <p>Nenhum atendimento nesta data.</p>
+                </div>
+                <ul id="history-list" class="space-y-3">
+                     <!-- Histórico -->
+                </ul>
+            </div>
+        </div>
+        
+        <footer class="text-center mt-12 text-gray-600 text-sm">
+            <p>ID da Sessão: <span id="session-id" class="font-mono"></span></p>
+            <p>&copy; 2024 - Amaral Barbearia</p>
+        </footer>
     </div>
-    
-    <div id="kiosk-services-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-lg border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Selecione os Serviços</h3><div id="kiosk-services-container" class="space-y-2 text-left max-h-64 overflow-y-auto p-2 border border-gray-600 rounded-lg"></div><div id="kiosk-total-value" class="text-primary mt-4 text-xl font-bold text-center"></div><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg mt-6">Confirmar</button></div></div>
-    <div id="services-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-lg border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Gerenciar Serviços</h3><div class="mb-6"><form id="add-service-form" class="flex gap-2"><input type="text" id="new-service-name" placeholder="Nome do Serviço" class="w-1/2 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"><input type="number" id="new-service-price" placeholder="Valor (R$)" step="0.01" class="w-1/3 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"><button type="submit" class="w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Adicionar</button></form></div><div id="services-list" class="space-y-2 max-h-64 overflow-y-auto"></div><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg mt-6">Fechar</button></div></div>
-    <div id="specific-customer-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Escolher Cliente da Fila</h3><div id="specific-customer-list" class="space-y-2 max-h-64 overflow-y-auto mb-6"></div><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div>
-    <div id="add-barber-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Adicionar Novo Barbeiro</h3><div class="space-y-4"><input type="text" id="new-barber-name" placeholder="Nome do Barbeiro" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white"><p id="add-barber-error" class="text-red-500 text-sm text-center h-4"></p><button id="save-barber-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">Salvar</button><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 font-semibold py-2 px-4 rounded-lg">Cancelar</button></div></div></div>
-    <div id="remove-barber-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Confirmar Remoção</h3><p id="remove-barber-text" class="text-center text-gray-300 mb-6"></p><div class="flex gap-4"><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 font-semibold py-2 px-4 rounded-lg">Cancelar</button><button id="confirm-remove-barber-btn" class="w-full bg-red-600 hover:bg-red-700 font-bold py-3 px-4 rounded-lg">Confirmar</button></div></div></div>
-    <div id="clear-history-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Confirmar Ação</h3><p class="text-center text-gray-300 mb-6">Tem certeza que deseja apagar TODO o histórico de atendimentos? Esta ação não pode ser desfeita.</p><div class="flex gap-4"><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 font-semibold py-2 px-4 rounded-lg">Cancelar</button><button id="confirm-clear-history-btn" class="w-full bg-red-600 hover:bg-red-700 font-bold py-3 px-4 rounded-lg">Apagar Histórico</button></div></div></div>
-    <div id="remove-customer-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-40"><div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-primary"><h3 class="text-2xl font-bold text-center mb-6">Remover Cliente</h3><p id="remove-customer-text" class="text-center text-gray-300 mb-6"></p><div class="flex gap-4"><button class="cancel-modal-btn w-full bg-gray-600 hover:bg-gray-700 font-semibold py-2 px-4 rounded-lg">Cancelar</button><button id="confirm-remove-customer-btn" class="w-full bg-red-600 hover:bg-red-700 font-bold py-3 px-4 rounded-lg">Remover</button></div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, onSnapshot, collection, query, orderBy, limit, addDoc, serverTimestamp, deleteDoc, updateDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, getDoc, updateDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const { jsPDF } = window.jspdf;
+        // Configuração do Firebase injetada pelo ambiente para segurança
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'barbershop-app-default';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        const firebaseConfig = {
-          apiKey: "AIzaSyDHSIP0Ko808esMuRt0AIQ0Ujhh6hL8ySo",
-          authDomain: "barberamaral-e10a4.firebaseapp.com",
-          projectId: "barberamaral-e10a4",
-          storageBucket: "barberamaral-e10a4.appspot.com",
-          messagingSenderId: "617102577968",
-          appId: "1:617102577968:web:2caa50df50518ee2f578f5",
-          measurementId: "G-66VFX9JERR"
+        let app, auth, db, userId, unsubscribeQueue = null;
+
+        const ui = {
+            customerNameInput: document.getElementById('customer-name'),
+            addCustomerBtn: document.getElementById('add-customer-btn'),
+            waitingList: document.getElementById('waiting-list'),
+            historyDateInput: document.getElementById('history-date'),
+            historyList: document.getElementById('history-list'),
+            sessionIdDisplay: document.getElementById('session-id'),
+            notificationArea: document.getElementById('notification-area'),
+            queueEmptyState: document.getElementById('queue-empty-state'),
+            historyEmptyState: document.getElementById('history-empty-state'),
+            consentSection: document.getElementById('consent-section'),
+            consentBtn: document.getElementById('consent-btn'),
+            addCustomerSection: document.getElementById('add-customer-section'),
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        function showNotification(message, type = 'success') {
+            const bgColor = type === 'error' ? 'bg-red-600' : 'bg-amber-500';
+            const textColor = type === 'error' ? 'text-white' : 'text-gray-900';
+            const notification = document.createElement('div');
+            notification.className = `p-4 ${textColor} ${bgColor} font-bold rounded-lg shadow-xl mb-2 animate-enter`;
+            notification.textContent = message;
+            ui.notificationArea.appendChild(notification);
 
-        const queueCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/queue`;
-        const barbersCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/barbers`;
-        const historyCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/history`;
-        const servicesCollectionPath = `artifacts/${firebaseConfig.projectId}/public/data/services`;
-
-        const ADMIN_PASSWORD = "AmaralAdmin"; 
-        let isAdminAuthenticated = false;
-        let isServiceSelectionEnabled = localStorage.getItem('serviceSelectionEnabled') === 'true';
-        let isEstimationEnabled = localStorage.getItem('estimationEnabled') === 'true';
-        let dynamicAverageTime = 25;
-        let barbersCache = {};
-        let servicesCache = [];
-        let todaysHistoryCache = [];
-        let currentQueueSize = 0;
-        let availableBarbersCount = 0;
-        let customerToRemoveId = null;
-
-        const passwordModal = document.getElementById('password-modal');
-        const showLoginBtn = document.getElementById('show-login-btn');
-        const servicesToggle = document.getElementById('toggle-services-btn');
-        const estimationToggle = document.getElementById('toggle-estimation-btn');
-        servicesToggle.checked = isServiceSelectionEnabled;
-        estimationToggle.checked = isEstimationEnabled;
-        
-        window.switchView = (viewId) => {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            showLoginBtn.style.display = (viewId === 'admin-view') ? 'none' : 'block';
-            document.getElementById('kiosk-services-section').style.display = isServiceSelectionEnabled ? 'block' : 'none';
-        };
-
-        showLoginBtn.addEventListener('click', () => {
-            if (isAdminAuthenticated) switchView('admin-view');
-            else {
-                passwordModal.classList.add('active');
-                document.getElementById('password-input').focus();
-            }
-        });
-
-        document.getElementById('submit-password-btn').addEventListener('click', () => {
-            if (document.getElementById('password-input').value === ADMIN_PASSWORD) {
-                isAdminAuthenticated = true;
-                passwordModal.classList.remove('active');
-                switchView('admin-view');
-            } else document.getElementById('password-error').textContent = 'Senha incorreta.';
-        });
-        
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            isAdminAuthenticated = false;
-            switchView('tv-view');
-        });
-        
-        servicesToggle.addEventListener('change', (e) => {
-            isServiceSelectionEnabled = e.target.checked;
-            localStorage.setItem('serviceSelectionEnabled', isServiceSelectionEnabled);
-            document.getElementById('kiosk-services-section').style.display = isServiceSelectionEnabled ? 'block' : 'none';
-        });
-
-        estimationToggle.addEventListener('change', (e) => {
-            isEstimationEnabled = e.target.checked;
-            localStorage.setItem('estimationEnabled', isEstimationEnabled);
-        });
-
-        document.getElementById('go-to-kiosk-btn').addEventListener('click', () => switchView('kiosk-view'));
-        document.getElementById('go-to-tv-btn').addEventListener('click', () => switchView('tv-view'));
-
-        const allModals = document.querySelectorAll('.modal');
-        document.querySelectorAll('.cancel-modal-btn').forEach(btn => btn.addEventListener('click', (e) => e.target.closest('.modal').classList.remove('active')));
-        
-        let activeBarberId = null;
-        let barberToRemoveId = null;
-
-        document.getElementById('add-barber-btn').addEventListener('click', () => document.getElementById('add-barber-modal').classList.add('active'));
-        document.getElementById('save-barber-btn').addEventListener('click', async () => {
-            const name = document.getElementById('new-barber-name').value.trim();
-            if (name) {
-                await addDoc(collection(db, barbersCollectionPath), { name, status: 'available' });
-                document.getElementById('add-barber-modal').classList.remove('active');
-            } else document.getElementById('add-barber-error').textContent = "O nome não pode ser vazio.";
-        });
-        document.getElementById('confirm-remove-barber-btn').addEventListener('click', async () => {
-            if(barberToRemoveId) {
-                await deleteDoc(doc(db, barbersCollectionPath, barberToRemoveId));
-                document.getElementById('remove-barber-modal').classList.remove('active');
-            }
-        });
-        document.getElementById('confirm-remove-customer-btn').addEventListener('click', async () => {
-            if(customerToRemoveId) {
-                await deleteDoc(doc(db, queueCollectionPath, customerToRemoveId));
-                document.getElementById('remove-customer-modal').classList.remove('active');
-            }
-        });
-        document.getElementById('clear-history-btn').addEventListener('click', () => document.getElementById('clear-history-modal').classList.add('active'));
-        document.getElementById('confirm-clear-history-btn').addEventListener('click', async () => {
-            const snapshot = await getDocs(collection(db, historyCollectionPath));
-            const batch = writeBatch(db);
-            snapshot.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-            document.getElementById('clear-history-modal').classList.remove('active');
-        });
-        
-        document.getElementById('manage-services-btn').addEventListener('click', () => document.getElementById('services-modal').classList.add('active'));
-        document.getElementById('add-service-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('new-service-name').value.trim();
-            const price = parseFloat(document.getElementById('new-service-price').value);
-            if(name && !isNaN(price)) {
-                await addDoc(collection(db, servicesCollectionPath), { name, price });
-                e.target.reset();
-            }
-        });
-
-        function renderServices(services) {
-            const listEl = document.getElementById('services-list');
-            const kioskContainer = document.getElementById('kiosk-services-container');
-            listEl.innerHTML = ''; kioskContainer.innerHTML = '';
-            services.forEach(service => {
-                const item = document.createElement('div');
-                item.className = 'flex justify-between items-center bg-gray-700 p-2 rounded';
-                item.innerHTML = `<span>${service.name} - R$ ${service.price.toFixed(2)}</span><button data-id="${service.id}" class="remove-service-btn text-red-500 hover:text-red-700 font-bold">&times;</button>`;
-                listEl.appendChild(item);
-                
-                const kioskItem = document.createElement('label');
-                kioskItem.className = 'flex items-center gap-2 p-2 rounded hover:bg-gray-600 cursor-pointer';
-                kioskItem.innerHTML = `<input type="checkbox" data-price="${service.price}" data-name="${service.name}" class="kiosk-service-checkbox h-5 w-5 rounded bg-gray-600 border-gray-500 text-primary focus:ring-primary"><span class="flex-grow">${service.name}</span><span class="font-semibold">R$ ${service.price.toFixed(2)}</span>`;
-                kioskContainer.appendChild(kioskItem);
-            });
-            document.querySelectorAll('.remove-service-btn').forEach(btn => btn.onclick = async (e) => await deleteDoc(doc(db, servicesCollectionPath, e.target.dataset.id)));
-            document.querySelectorAll('.kiosk-service-checkbox').forEach(box => box.onchange = calculateTotalValue);
+            setTimeout(() => {
+                notification.classList.remove('animate-enter');
+                notification.classList.add('animate-leave');
+                notification.addEventListener('animationend', () => notification.remove());
+            }, 3500);
         }
-        
-        function calculateTotalValue() {
-            let total = 0;
-            const selectedNames = [];
-            document.querySelectorAll('.kiosk-service-checkbox:checked').forEach(box => {
-                total += parseFloat(box.dataset.price);
-                selectedNames.push(box.dataset.name);
-            });
-            document.getElementById('kiosk-total-value').textContent = total > 0 ? `Total: R$ ${total.toFixed(2)}` : '';
-            document.getElementById('services-summary').innerHTML = selectedNames.length > 0 ? `<strong>Serviços:</strong> ${selectedNames.join(', ')} <br> <strong>Total: R$ ${total.toFixed(2)}</strong>` : '';
-        }
-        
-        document.getElementById('show-services-modal-btn').addEventListener('click', () => document.getElementById('kiosk-services-modal').classList.add('active'));
 
-        document.getElementById('kiosk-join-queue-btn').addEventListener('click', async (e) => {
-            const name = document.getElementById('kiosk-customer-name').value.trim();
-            if (!name) { document.getElementById('kiosk-customer-feedback').textContent = 'Por favor, digite seu nome.'; return; }
-            e.target.disabled = true;
-            const selectedServices = [];
-            document.querySelectorAll('.kiosk-service-checkbox:checked').forEach(box => selectedServices.push({ name: box.dataset.name, price: parseFloat(box.dataset.price) }));
-            const totalValue = selectedServices.reduce((sum, s) => sum + s.price, 0);
-            const barberSelect = document.getElementById('kiosk-preferred-barber');
-            const feedbackEl = document.getElementById('kiosk-customer-feedback');
+        async function main() {
             try {
-                await addDoc(collection(db, queueCollectionPath), { 
-                    name, 
-                    timestamp: serverTimestamp(),
-                    preferredBarberId: barberSelect.value,
-                    preferredBarberName: barberSelect.options[barberSelect.selectedIndex].text,
-                    services: selectedServices,
-                    totalValue: totalValue
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        ui.sessionIdDisplay.textContent = userId;
+                        setupRealtimeQueueListener();
+                        setupHistoryListener();
+                    }
                 });
-                feedbackEl.textContent = 'Sucesso! Você está na fila.';
-                document.getElementById('kiosk-customer-name').value = '';
-                document.querySelectorAll('.kiosk-service-checkbox').forEach(box => box.checked = false);
-                calculateTotalValue();
-                updateWaitTime(); 
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
             } catch (error) {
-                feedbackEl.textContent = 'Erro ao conectar.';
-            } finally {
-                setTimeout(() => { e.target.disabled = false; feedbackEl.textContent = ''; }, 4000);
+                console.error("Firebase Init Error:", error);
+                showNotification("Falha na conexão com o sistema.", "error");
             }
-        });
-        
-        function updateWaitTime() {
-            const display = document.getElementById('wait-time-display');
-            if (!isEstimationEnabled) {
-                display.textContent = '';
+            ui.historyDateInput.value = new Date().toISOString().split('T')[0];
+            setupConsentFlow();
+        }
+
+        function setupConsentFlow() {
+            ui.consentBtn.addEventListener('click', () => {
+                ui.consentSection.classList.add('hidden');
+                ui.addCustomerSection.classList.remove('hidden');
+                ui.customerNameInput.focus();
+            });
+        }
+
+        function setupRealtimeQueueListener() {
+            if (!userId) return;
+            const queueCollectionPath = `artifacts/${appId}/users/${userId}/queue`;
+            const q = query(collection(db, queueCollectionPath), orderBy("timestamp", "asc"));
+
+            unsubscribeQueue = onSnapshot(q, (snapshot) => renderQueue(snapshot.docs), (error) => {
+                console.error("Queue Listener Error:", error);
+                showNotification("Erro ao carregar a fila.", "error");
+            });
+        }
+
+        function renderQueue(docs) {
+            ui.waitingList.innerHTML = '';
+            ui.queueEmptyState.classList.toggle('hidden', docs.length > 0);
+
+            docs.forEach((doc, index) => {
+                const customer = doc.data();
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between bg-gray-700/50 p-4 rounded-lg animate-enter transition-all hover:bg-gray-700';
+                li.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-gray-900 font-bold text-lg">${index + 1}</span>
+                        <span class="font-medium text-lg text-white">${customer.name}</span>
+                    </div>
+                    <button data-id="${doc.id}" data-name="${customer.name}" class="finish-btn bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-500 transition-colors flex items-center gap-2">
+                        <i class="fas fa-check"></i>
+                        <span>Finalizado</span>
+                    </button>
+                `;
+                ui.waitingList.appendChild(li);
+            });
+
+            document.querySelectorAll('.finish-btn').forEach(button => {
+                button.addEventListener('click', handleFinishCustomer);
+            });
+        }
+
+        async function addCustomer() {
+            const name = ui.customerNameInput.value.trim();
+            if (!name) {
+                showNotification("Por favor, digite o nome do cliente.", "error");
                 return;
             }
-            const peopleInFront = currentQueueSize;
-            const waitTime = Math.ceil((peopleInFront + 1) / Math.max(1, availableBarbersCount)) * dynamicAverageTime;
-            display.textContent = `Tempo de espera: aprox. ${waitTime} minutos.`;
-            setTimeout(() => { display.textContent = '' }, 5000);
+            if (!userId) {
+                showNotification("Erro de autenticação.", "error");
+                return;
+            }
+
+            try {
+                const queueCollectionPath = `artifacts/${appId}/users/${userId}/queue`;
+                await addDoc(collection(db, queueCollectionPath), { name, timestamp: serverTimestamp() });
+                ui.customerNameInput.value = '';
+                showNotification(`"${name}" foi adicionado à fila!`, "success");
+
+                // Resetar a visualização para o aviso
+                ui.addCustomerSection.classList.add('hidden');
+                ui.consentSection.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Add Customer Error:", error);
+                showNotification("Erro ao adicionar cliente.", "error");
+            }
+        }
+
+        async function handleFinishCustomer(event) {
+            const button = event.currentTarget;
+            button.disabled = true;
+            const customerId = button.dataset.id;
+            const customerName = button.dataset.name;
+            
+            if (!userId) {
+                showNotification("Erro de autenticação.", "error");
+                button.disabled = false;
+                return;
+            }
+            
+            const listItem = button.closest('li');
+            listItem.classList.remove('animate-enter');
+            listItem.classList.add('animate-leave');
+
+            setTimeout(async () => {
+                try {
+                    await addToHistory(customerName);
+                    const queueDocPath = `artifacts/${appId}/users/${userId}/queue/${customerId}`;
+                    await deleteDoc(doc(db, queueDocPath));
+                    await fetchAndRenderHistory(); 
+                    showNotification(`${customerName} foi atendido!`, "success");
+                } catch (error) {
+                    console.error("Finish Customer Error:", error);
+                    showNotification("Erro ao finalizar atendimento.", "error");
+                    listItem.classList.remove('animate-leave');
+                    button.disabled = false;
+                }
+            }, 500);
+        }
+
+        async function addToHistory(customerName) {
+            const today = new Date().toISOString().split('T')[0];
+            const historyDocPath = `artifacts/${appId}/users/${userId}/history/${today}`;
+            const historyDocRef = doc(db, historyDocPath);
+
+            const docSnap = await getDoc(historyDocRef);
+            const newEntry = { name: customerName, finishedAt: new Date().toISOString() };
+
+            if (docSnap.exists()) {
+                const currentData = docSnap.data();
+                await updateDoc(historyDocRef, { customers: [...currentData.customers, newEntry] });
+            } else {
+                await setDoc(historyDocRef, { customers: [newEntry] });
+            }
         }
         
-        function startListeners() {
-            onSnapshot(query(collection(db, servicesCollectionPath), orderBy("name")), (snapshot) => {
-                servicesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderServices(servicesCache);
-            });
-            onSnapshot(query(collection(db, barbersCollectionPath), orderBy("name")), (snapshot) => {
-                const selectEl = document.getElementById('kiosk-preferred-barber');
-                selectEl.innerHTML = '<option value="any">Qualquer Barbeiro</option>';
-                barbersCache = {};
-                availableBarbersCount = snapshot.docs.filter(d => d.data().status === 'available').length;
-                snapshot.forEach(doc => {
-                    const barber = { id: doc.id, ...doc.data() };
-                    barbersCache[barber.id] = barber.name;
-                    const option = document.createElement('option');
-                    option.value = barber.id; option.textContent = barber.name;
-                    selectEl.appendChild(option);
-                });
-            });
-            onSnapshot(query(collection(db, queueCollectionPath), orderBy("timestamp")), (snapshot) => {
-                const listTV = document.getElementById('queue-list-display');
-                const listKiosk = document.getElementById('kiosk-queue-list');
-                const listAdmin = document.getElementById('admin-queue-list');
-                listTV.innerHTML = ''; listKiosk.innerHTML = ''; listAdmin.innerHTML = '';
-                snapshot.docs.forEach((doc, i) => {
-                    const data = doc.data();
-                    const orderNumber = i + 1;
-                    const prefText = (data.preferredBarberId && data.preferredBarberId !== 'any') ? `<span class="text-xs text-primary-light ml-2">(Pref: ${data.preferredBarberName})</span>` : '';
-                    const servicesText = data.services?.length > 0 ? `<div class="text-xs text-gray-400">${data.services.map(s => s.name).join(', ')}</div>` : '';
-                    
-                    listTV.innerHTML += `<li class="bg-gray-700 p-3 rounded-lg"><div class="flex items-center text-xl"><span class="text-primary font-bold text-2xl mr-4">${orderNumber}º</span><span>${data.name}</span>${prefText}</div>${servicesText}</li>`;
-                    listKiosk.innerHTML += `<li class="bg-gray-700 p-3 rounded-lg"><div class="flex items-center text-lg"><span class="text-primary font-bold text-xl mr-3">${orderNumber}º</span><span>${data.name}</span>${prefText}</div>${servicesText}</li>`;
-                    listAdmin.innerHTML += `<li class="bg-gray-700 p-3 rounded-lg flex justify-between items-center"><div class="flex-grow"><div class="flex items-center text-lg"><span class="text-primary font-bold text-xl mr-3">${orderNumber}º</span><span>${data.name}</span>${prefText}</div>${servicesText}</div><button data-id="${doc.id}" data-name="${data.name}" class="remove-customer-btn p-2 text-red-500 hover:text-red-400"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></li>`;
-                });
-                document.querySelectorAll('.remove-customer-btn').forEach(btn => btn.onclick = (e) => {
-                    customerToRemoveId = e.currentTarget.dataset.id;
-                    document.getElementById('remove-customer-text').textContent = `Remover ${e.currentTarget.dataset.name} da fila?`;
-                    document.getElementById('remove-customer-modal').classList.add('active');
-                });
-                currentQueueSize = snapshot.size;
-                const hasCustomers = currentQueueSize > 0;
-                document.getElementById('next-in-queue-barber').textContent = hasCustomers ? snapshot.docs[0].data().name : 'Ninguém';
-                if (!hasCustomers) {
-                    listTV.innerHTML = '<p class="text-center text-gray-400">A fila está vazia.</p>';
-                    listKiosk.innerHTML = '<p class="text-center text-gray-400">A fila está vazia.</p>';
-                    listAdmin.innerHTML = '<p class="text-center text-gray-400">A fila está vazia.</p>';
+        function setupHistoryListener() {
+            ui.historyDateInput.addEventListener('change', fetchAndRenderHistory);
+            fetchAndRenderHistory();
+        }
+
+        async function fetchAndRenderHistory() {
+            const selectedDate = ui.historyDateInput.value;
+            if (!selectedDate || !userId) return;
+            
+            ui.historyList.innerHTML = '';
+            
+            try {
+                const historyDocPath = `artifacts/${appId}/users/${userId}/history/${selectedDate}`;
+                const docSnap = await getDoc(doc(db, historyDocPath));
+                
+                let customers = [];
+                if (docSnap.exists()) {
+                    customers = docSnap.data().customers || [];
                 }
-                updateBarberButtonsState(hasCustomers);
-            });
-            onSnapshot(query(collection(db, barbersCollectionPath), orderBy("name")), (snapshot) => {
-                const listTV = document.getElementById('serving-now-list');
-                const panelAdmin = document.getElementById('barbers-panel');
-                listTV.innerHTML = ''; panelAdmin.innerHTML = '';
-                if(snapshot.empty) panelAdmin.innerHTML = '<p class="col-span-full text-center text-gray-400">Nenhum barbeiro.</p>';
-                snapshot.forEach(doc => {
-                    const barber = { id: doc.id, ...doc.data() };
-                    const isBusy = barber.status === 'busy';
-                    const isPaused = barber.status === 'paused';
-                    if (isBusy) listTV.innerHTML += `<div class="bg-gray-700 p-4 rounded-lg flex justify-between items-center text-xl"><span class="font-semibold">${barber.servingCustomerName}</span><span class="text-sm text-primary">${barber.name}</span></div>`;
-                    const card = document.createElement('div');
-                    card.className = `barber-card bg-gray-800 p-6 rounded-xl border-2 ${isBusy ? 'border-red-600' : isPaused ? 'border-gray-500' : 'border-green-500'}`;
-                    card.innerHTML = `<div class="flex justify-between items-start mb-2"><h3 class="text-2xl font-bold">${barber.name}</h3><button data-barber-id="${barber.id}" data-barber-name="${barber.name}" class="remove-barber-btn text-xl leading-none text-gray-500 hover:text-red-500">&times;</button></div><p class="text-sm text-gray-400">Status:</p><p class="font-semibold text-lg ${isBusy ? 'text-red-400' : isPaused ? 'text-gray-400' : 'text-green-400'}">${isBusy ? `Atendendo: ${barber.servingCustomerName}` : isPaused ? 'Em Pausa' : 'Livre'}</p><div class="grid grid-cols-2 gap-2 mt-4"><button data-barber-id="${barber.id}" data-barber-status="${barber.status}" class="pause-btn col-span-2 ${isPaused ? 'bg-yellow-600' : 'bg-gray-600'} hover:bg-yellow-700 font-semibold py-2 rounded-lg">${isPaused ? 'Retomar' : 'Pausar'}</button><button data-barber-id="${barber.id}" data-barber-name="${barber.name}" class="call-next-btn bg-green-600 hover:bg-green-700 font-semibold py-2 rounded-lg">Próximo</button><button data-barber-id="${barber.id}" class="call-specific-btn bg-blue-600 hover:bg-blue-700 font-semibold py-2 rounded-lg">Da Fila</button><button data-barber-id="${barber.id}" class="finish-work-btn col-span-2 bg-red-600 hover:bg-red-700 font-semibold py-2 rounded-lg mt-2">Finalizar</button></div>`;
-                    panelAdmin.appendChild(card);
-                });
-                if(!listTV.innerHTML) listTV.innerHTML = '<p class="text-gray-400 text-center">Nenhum cliente em atendimento.</p>';
-                addEventListenersToAdminButtons();
-                updateBarberButtonsState(currentQueueSize > 0);
-            });
-            onSnapshot(query(collection(db, historyCollectionPath), orderBy("completedAt", "desc")), (snapshot) => {
-                const container = document.getElementById('history-list-container');
-                const statsEl = document.getElementById('history-stats');
-                const today = new Date().setHours(0, 0, 0, 0);
-                todaysHistoryCache = snapshot.docs.map(doc => doc.data()).filter(data => data.completedAt?.toDate().setHours(0,0,0,0) === today);
-                const totalToday = todaysHistoryCache.length;
-                const byBarber = todaysHistoryCache.reduce((acc, doc) => { acc[doc.barberName] = (acc[doc.barberName] || 0) + 1; return acc; }, {});
-                let statsHTML = `<p>Total de Hoje: <span class="font-bold text-primary">${totalToday}</span></p>`;
-                if(Object.keys(byBarber).length > 0) statsHTML += `<p class="text-sm">Por Barbeiro: ${Object.entries(byBarber).map(([name, count]) => `${name} (${count})`).join(', ')}</p>`;
-                const durations = snapshot.docs.map(doc => doc.data().durationInMinutes).filter(d => d > 0);
-                if (durations.length > 0) dynamicAverageTime = Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length);
-                statsHTML += `<p class="text-sm">Tempo Médio de Atendimento: ${dynamicAverageTime} min</p>`;
-                statsEl.innerHTML = statsHTML;
-                container.innerHTML = snapshot.empty ? '<p class="text-center text-gray-400">Nenhum atendimento.</p>' : '<table class="w-full text-left"><thead><tr class="border-b border-gray-600"><th class="p-3 text-primary">Cliente</th><th class="p-3 text-primary">Barbeiro</th><th class="p-3 text-primary">Duração</th><th class="p-3 text-primary text-right">Horário</th></tr></thead><tbody></tbody></table>';
-                if(!snapshot.empty) {
-                    const tbody = container.querySelector('tbody');
-                    snapshot.forEach(doc => {
-                        const h = doc.data();
-                        tbody.innerHTML += `<tr class="border-t border-gray-700"><td class="p-3">${h.customerName}</td><td class="p-3">${h.barberName}</td><td class="p-3">${h.durationInMinutes || 'N/A'} min</td><td class="p-3 text-right">${h.completedAt?.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) || ''}</td></tr>`;
+
+                ui.historyEmptyState.classList.toggle('hidden', customers.length > 0);
+
+                if (customers.length > 0) {
+                    const sorted = customers.sort((a, b) => new Date(a.finishedAt) - new Date(b.finishedAt));
+                    sorted.forEach(customer => {
+                        const li = document.createElement('li');
+                        const time = new Date(customer.finishedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        li.className = 'flex items-center justify-between bg-gray-700/50 p-3 rounded-lg animate-enter';
+                        li.innerHTML = `
+                            <span class="text-gray-300">${customer.name}</span>
+                            <span class="text-sm text-gray-400 font-mono">${time}</span>
+                        `;
+                        ui.historyList.appendChild(li);
                     });
                 }
-            });
-            document.getElementById('loading-overlay').style.display = 'none';
-        }
-        
-        function updateBarberButtonsState(queueIsNotEmpty) {
-            document.querySelectorAll('.barber-card').forEach(card => {
-                const isBusy = card.querySelector('.text-red-400') !== null;
-                const isPaused = card.querySelector('.text-gray-400') !== null && card.querySelector('.font-semibold').textContent === 'Em Pausa';
-                card.querySelectorAll('button').forEach(btn => {
-                    if (btn.classList.contains('call-next-btn') || btn.classList.contains('call-specific-btn')) btn.disabled = isBusy || isPaused || !queueIsNotEmpty;
-                    if (btn.classList.contains('finish-work-btn')) btn.disabled = !isBusy;
-                    if (btn.classList.contains('remove-barber-btn')) btn.disabled = isBusy;
-                    if (btn.classList.contains('pause-btn')) btn.disabled = isBusy;
-                });
-            });
-        }
-
-        function addEventListenersToAdminButtons() {
-            document.querySelectorAll('.call-next-btn').forEach(btn => btn.onclick = (e) => callNextCustomer(e.target.dataset.barberId, e.target.dataset.barberName));
-            document.querySelectorAll('.finish-work-btn').forEach(btn => btn.onclick = (e) => finishWork(e.target.dataset.barberId));
-            document.querySelectorAll('.call-specific-btn').forEach(btn => btn.onclick = (e) => requestSpecificCustomer(e.target.dataset.barberId));
-            document.querySelectorAll('.remove-barber-btn').forEach(btn => btn.onclick = (e) => {
-                barberToRemoveId = e.target.dataset.barberId;
-                document.getElementById('remove-barber-text').textContent = `Remover ${e.target.dataset.barberName}?`;
-                document.getElementById('remove-barber-modal').classList.add('active');
-            });
-             document.querySelectorAll('.pause-btn').forEach(btn => btn.onclick = async (e) => {
-                const barberId = e.target.dataset.barberId;
-                const currentStatus = e.target.dataset.barberStatus;
-                const newStatus = currentStatus === 'paused' ? 'available' : 'paused';
-                await updateDoc(doc(db, barbersCollectionPath, barberId), { status: newStatus });
-            });
-        }
-        
-        document.getElementById('generate-pdf-btn').addEventListener('click', () => {
-            const doc = new jsPDF();
-            const today = new Date().toLocaleDateString('pt-BR');
-            let y = 15;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(20);
-            doc.text('Relatório Diário - Amaral Barbearia', 105, y, { align: 'center' });
-            y += 5; doc.setFontSize(12); doc.setFont('helvetica', 'normal'); doc.text(today, 105, y, { align: 'center' }); y += 15;
-            const byBarber = todaysHistoryCache.reduce((acc, service) => {
-                if (!acc[service.barberName]) acc[service.barberName] = [];
-                acc[service.barberName].push(service); return acc;
-            }, {});
-            for (const barberName in byBarber) {
-                if (y > 270) { doc.addPage(); y = 15; }
-                doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(`${barberName} - Total: ${byBarber[barberName].length}`, 14, y); y += 8;
-                doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-                byBarber[barberName].forEach(service => {
-                    if (y > 280) { doc.addPage(); y = 15; }
-                    const time = service.completedAt.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                    doc.text(`- ${service.customerName}`, 16, y);
-                    doc.text(`(${service.durationInMinutes || 'N/A'} min) - ${time}`, 100, y);
-                    y += 6;
-                });
-                y += 10;
-            }
-            doc.save(`Relatorio_Amaral_Barbearia_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-        });
-
-        async function callNextCustomer(barberId, barberName) {
-            const q = query(collection(db, queueCollectionPath), orderBy("timestamp"));
-            const snap = await getDocs(q);
-            if (snap.empty) return;
-            for (const customerDoc of snap.docs) {
-                const customerData = customerDoc.data();
-                if (customerData.preferredBarberId === 'any' || customerData.preferredBarberId === barberId) {
-                    await callSpecificCustomer(barberId, barberName, customerDoc.id, customerData.name); return;
-                }
-            }
-            alert(`Não há clientes na fila para ${barberName} no momento.`);
-        }
-
-        async function requestSpecificCustomer(barberId) {
-            activeBarberId = barberId;
-            const modal = document.getElementById('specific-customer-modal');
-            const listEl = document.getElementById('specific-customer-list');
-            listEl.innerHTML = '<p class="text-center">Carregando...</p>';
-            modal.classList.add('active');
-            const snap = await getDocs(query(collection(db, queueCollectionPath), orderBy("timestamp")));
-            listEl.innerHTML = snap.empty ? '<p class="text-gray-400">A fila está vazia.</p>' : '';
-            let orderCounter = 1;
-            snap.forEach((doc) => {
-                const c = doc.data();
-                const prefText = (c.preferredBarberId && c.preferredBarberId !== 'any') ? ` (Pref: ${c.preferredBarberName})` : '';
-                const item = document.createElement('div');
-                item.className = 'specific-customer-item bg-gray-700 p-3 rounded-lg flex items-center cursor-pointer';
-                item.innerHTML = `<span class="text-primary font-bold text-lg mr-4">${orderCounter}º</span><span>${c.name}${prefText}</span>`;
-                item.onclick = () => callSpecificCustomer(activeBarberId, barbersCache[activeBarberId], doc.id, c.name);
-                listEl.appendChild(item);
-                orderCounter++;
-            });
-        }
-
-        async function callSpecificCustomer(barberId, barberName, customerId, customerName) {
-            document.getElementById('notification-sound').play();
-            allModals.forEach(m => m.classList.remove('active'));
-            await updateDoc(doc(db, barbersCollectionPath, barberId), { status: 'busy', servingCustomerName: customerName, servingCustomerId: customerId, servingSince: serverTimestamp() });
-            await deleteDoc(doc(db, queueCollectionPath, customerId));
-        }
-
-        async function finishWork(barberId) {
-            const barberRef = doc(db, barbersCollectionPath, barberId);
-            const barberSnap = await getDoc(barberRef);
-            if (barberSnap.exists()) {
-                const d = barberSnap.data();
-                if (d.status === 'busy' && d.servingSince) {
-                    const durationInMinutes = Math.round((new Date().getTime() - d.servingSince.toDate().getTime()) / 60000);
-                    await addDoc(collection(db, historyCollectionPath), { 
-                        customerName: d.servingCustomerName, 
-                        barberName: d.name, 
-                        completedAt: serverTimestamp(),
-                        durationInMinutes: durationInMinutes > 0 ? durationInMinutes : 1 
-                    });
-                }
-                await updateDoc(barberRef, { status: 'available', servingCustomerName: null, servingCustomerId: null, servingSince: null });
+            } catch(error) {
+                console.error("History Fetch Error:", error);
+                showNotification("Erro ao carregar o histórico.", "error");
+                ui.historyEmptyState.classList.remove('hidden');
             }
         }
 
-        startListeners();
+        ui.addCustomerBtn.addEventListener('click', addCustomer);
+        ui.customerNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addCustomer(); });
+        window.addEventListener('beforeunload', () => { if (unsubscribeQueue) unsubscribeQueue(); });
+
+        main();
     </script>
 </body>
 </html>
